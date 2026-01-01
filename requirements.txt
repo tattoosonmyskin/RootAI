@@ -8,6 +8,9 @@ camel-tools>=1.5.0
 transformers>=4.30.0
 sentencepiece>=0.1.99
 
+# GPT/LLM integration
+openai>=1.0.0
+
 # API dependencies
 fastapi>=0.100.0
 uvicorn[standard]>=0.23.0
