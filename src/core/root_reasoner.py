@@ -7,6 +7,7 @@ using Arabic root morphology and transformer models.
 
 from typing import List, Dict, Optional, Tuple
 import re
+import os
 import numpy as np
 
 try:
@@ -54,9 +55,16 @@ class RootReasoner:
         Args:
             model_name: HuggingFace T5 model name
             graph_index_path: Path to pre-built Faiss index
-            use_gpu: Whether to use GPU acceleration
+            use_gpu: Whether to use GPU acceleration (can be overridden by ROOTAI_USE_GPU env var)
             max_length: Maximum sequence length for T5
         """
+        # Check environment variable for GPU usage
+        env_use_gpu = os.environ.get("ROOTAI_USE_GPU", "").lower()
+        if env_use_gpu in ("false", "0", "no"):
+            use_gpu = False
+        elif env_use_gpu in ("true", "1", "yes"):
+            use_gpu = True
+        
         self.model_name = model_name
         self.use_gpu = use_gpu
         self.max_length = max_length

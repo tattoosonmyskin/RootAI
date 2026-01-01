@@ -14,7 +14,7 @@ try:
     import faiss
 except ImportError:
     faiss = None
-    print("Warning: faiss-gpu not installed. Install with: pip install faiss-gpu")
+    print("Warning: faiss not installed. Install with: pip install faiss-cpu or faiss-gpu")
 
 
 class GraphSharding:
@@ -59,7 +59,7 @@ class GraphSharding:
             metadata: Optional list of dictionaries containing root information
         """
         if faiss is None:
-            raise RuntimeError("faiss-gpu not installed")
+            raise RuntimeError("faiss not installed. Install faiss-cpu or faiss-gpu")
             
         n_roots = embeddings.shape[0]
         print(f"Building Faiss index for {n_roots} roots...")

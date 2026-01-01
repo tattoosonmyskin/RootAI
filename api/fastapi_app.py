@@ -5,13 +5,16 @@ Provides REST API for root-based semantic reasoning.
 Main endpoint: POST /reason
 """
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Dict, Optional
 import logging
 import time
 from datetime import datetime
+from collections import defaultdict
+import asyncio
 
 # Import RootAI components
 import sys
@@ -24,6 +27,15 @@ from core.graph_sharding import GraphSharding, create_sample_index
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Rate limiting configuration
+RATE_LIMIT_REQUESTS = int(os.environ.get("RATE_LIMIT_REQUESTS", "100"))
+RATE_LIMIT_WINDOW = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))  # seconds
+rate_limit_store = defaultdict(lambda: {"count": 0, "reset_time": time.time() + RATE_LIMIT_WINDOW})
+
+# Input validation limits
+MAX_QUERY_LENGTH = int(os.environ.get("MAX_QUERY_LENGTH", "5000"))
+MIN_QUERY_LENGTH = int(os.environ.get("MIN_QUERY_LENGTH", "1"))
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -49,6 +61,16 @@ request_count = 0
 startup_time = None
 
 
+# Error response models
+class ErrorDetail(BaseModel):
+    """Structured error detail."""
+    error_code: str = Field(..., description="Machine-readable error code")
+    message: str = Field(..., description="Human-readable error message")
+    details: Optional[Dict] = Field(None, description="Additional error details")
+    hint: Optional[str] = Field(None, description="Suggestion for resolving the error")
+    timestamp: str = Field(..., description="Error timestamp")
+
+
 # Request/Response models
 class ReasonRequest(BaseModel):
     """Request model for /reason endpoint."""
@@ -56,6 +78,30 @@ class ReasonRequest(BaseModel):
     k: int = Field(default=5, ge=1, le=20, description="Number of similar roots to retrieve")
     max_tokens: int = Field(default=200, ge=10, le=512, description="Maximum tokens to generate")
     include_analysis: bool = Field(default=True, description="Include root analysis in response")
+    language_hint: Optional[str] = Field(None, description="Optional language hint (e.g., 'ar' for Arabic)")
+    
+    @field_validator('query')
+    @classmethod
+    def validate_query(cls, v: str) -> str:
+        """Validate query length."""
+        if not v or not v.strip():
+            raise ValueError("Query cannot be empty")
+        if len(v) < MIN_QUERY_LENGTH:
+            raise ValueError(f"Query must be at least {MIN_QUERY_LENGTH} character(s)")
+        if len(v) > MAX_QUERY_LENGTH:
+            raise ValueError(f"Query exceeds maximum length of {MAX_QUERY_LENGTH} characters")
+        return v
+    
+    @field_validator('language_hint')
+    @classmethod
+    def validate_language_hint(cls, v: Optional[str]) -> Optional[str]:
+        """Validate language hint."""
+        if v is not None:
+            valid_languages = ['ar', 'en', 'es', 'fr', 'de', 'auto']
+            if v.lower() not in valid_languages:
+                raise ValueError(f"Invalid language hint. Must be one of: {', '.join(valid_languages)}")
+            return v.lower()
+        return v
     
     class Config:
         json_schema_extra = {
@@ -63,9 +109,113 @@ class ReasonRequest(BaseModel):
                 "query": "What is the meaning of justice in Islamic philosophy?",
                 "k": 5,
                 "max_tokens": 200,
-                "include_analysis": True
+                "include_analysis": True,
+                "language_hint": "en"
             }
         }
+
+
+# Rate limiting middleware
+async def rate_limit_middleware(request: Request, call_next):
+    """Simple rate limiting middleware."""
+    # Skip rate limiting for health checks and docs
+    if request.url.path in ["/health", "/docs", "/redoc", "/openapi.json", "/"]:
+        return await call_next(request)
+    
+    # Get client identifier (IP address)
+    client_ip = request.client.host if request.client else "unknown"
+    
+    # Check rate limit
+    current_time = time.time()
+    client_data = rate_limit_store[client_ip]
+    
+    # Reset if window expired
+    if current_time >= client_data["reset_time"]:
+        client_data["count"] = 0
+        client_data["reset_time"] = current_time + RATE_LIMIT_WINDOW
+    
+    # Check limit
+    if client_data["count"] >= RATE_LIMIT_REQUESTS:
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content={
+                "error_code": "RATE_LIMIT_EXCEEDED",
+                "message": "Too many requests",
+                "details": {
+                    "limit": RATE_LIMIT_REQUESTS,
+                    "window": RATE_LIMIT_WINDOW,
+                    "reset_time": client_data["reset_time"]
+                },
+                "hint": f"Please wait {int(client_data['reset_time'] - current_time)} seconds before retrying",
+                "timestamp": datetime.now().isoformat()
+            }
+        )
+    
+    # Increment counter
+    client_data["count"] += 1
+    
+    response = await call_next(request)
+    
+    # Add rate limit headers
+    response.headers["X-RateLimit-Limit"] = str(RATE_LIMIT_REQUESTS)
+    response.headers["X-RateLimit-Remaining"] = str(RATE_LIMIT_REQUESTS - client_data["count"])
+    response.headers["X-RateLimit-Reset"] = str(int(client_data["reset_time"]))
+    
+    return response
+
+
+app.middleware("http")(rate_limit_middleware)
+
+
+# Custom exception handler
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Handle HTTP exceptions with structured error responses."""
+    error_codes = {
+        400: "BAD_REQUEST",
+        401: "UNAUTHORIZED",
+        403: "FORBIDDEN",
+        404: "NOT_FOUND",
+        422: "VALIDATION_ERROR",
+        429: "RATE_LIMIT_EXCEEDED",
+        500: "INTERNAL_ERROR",
+        503: "SERVICE_UNAVAILABLE"
+    }
+    
+    hints = {
+        400: "Check your request parameters and try again",
+        422: "Ensure all required fields are provided with valid values",
+        429: "Wait before making more requests",
+        500: "Please try again later or contact support",
+        503: "The service is temporarily unavailable, please try again later"
+    }
+    
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error_code": error_codes.get(exc.status_code, "UNKNOWN_ERROR"),
+            "message": exc.detail,
+            "details": getattr(exc, "details", None),
+            "hint": hints.get(exc.status_code, "Please check the API documentation"),
+            "timestamp": datetime.now().isoformat()
+        }
+    )
+
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    """Handle general exceptions with structured error responses."""
+    logger.error(f"Unhandled exception: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "error_code": "INTERNAL_ERROR",
+            "message": "An internal error occurred",
+            "details": {"error_type": type(exc).__name__},
+            "hint": "Please try again later or contact support if the issue persists",
+            "timestamp": datetime.now().isoformat()
+        }
+    )
 
 
 class RootAnalysis(BaseModel):
@@ -115,12 +265,16 @@ async def startup_event():
     logger.info("Starting RootAI v3.0 API...")
     startup_time = datetime.now()
     
+    # Check GPU usage from environment
+    use_gpu = os.environ.get("ROOTAI_USE_GPU", "true").lower() in ("true", "1", "yes")
+    logger.info(f"GPU usage: {use_gpu}")
+    
     try:
         # Initialize reasoner with T5 model
         logger.info("Loading RootReasoner...")
         reasoner = RootReasoner(
             model_name="google/t5-v1_1-base",
-            use_gpu=True
+            use_gpu=use_gpu
         )
         
         # Try to load graph index if exists
@@ -221,14 +375,8 @@ async def reason(request: ReasonRequest, background_tasks: BackgroundTasks):
     
     if not reasoner:
         raise HTTPException(
-            status_code=503,
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Reasoning model not loaded. Service unavailable."
-        )
-    
-    if not request.query or not request.query.strip():
-        raise HTTPException(
-            status_code=400,
-            detail="Query cannot be empty"
         )
     
     # Track request
@@ -273,10 +421,16 @@ async def reason(request: ReasonRequest, background_tasks: BackgroundTasks):
         
         return response
         
-    except Exception as e:
-        logger.error(f"Error processing request: {e}")
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
         raise HTTPException(
-            status_code=500,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Error processing request: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error processing query: {str(e)}"
         )
 
