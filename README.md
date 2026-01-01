@@ -1,6 +1,6 @@
 # RootAI
 a new way for ai to reason.
-
+This is a work in progress and not validated.........yet.
 RootAI improves AI through root-family graph reasoning, achieving superior semantic accuracy (92% vs. GPT-4o's 67% on linguistic tasks) and 50x data efficiency (200GB dictionaries vs. 10TB text), grounded in morphological benchmarks like Holmes where transformers struggle on morphology/syntax (average 60-70% for top models). Conservative evidence from Arabic NLP shows root-based models reaching 82-95% accuracy on root extraction (vs. LLM 40-60% zero-shot), while graph neural networks match or exceed transformers on relational tasks.
 ​
 
