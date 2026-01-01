@@ -15,6 +15,42 @@ All data sources are **CPU-safe** and require **no API credentials**.
 
 ⚠️ **IMPORTANT**: Review [DATA_LICENSES.md](../../DATA_LICENSES.md) for license requirements and attribution obligations.
 
+## Offline Mode for CI/Copilot
+
+**GitHub Copilot agents and CI environments run offline** to avoid network firewall blocks. Dictionary downloads happen in GitHub Actions jobs with network access, then artifacts are used offline.
+
+### Offline Environment Flag
+
+Set `ROOTAI_OFFLINE=1` to skip network operations:
+
+```bash
+# Enable offline mode (skips wn.download calls)
+export ROOTAI_OFFLINE=1
+
+# This will skip network downloads and print hints
+python -m rootai.data.pull_dictionaries --sets oewn:2024
+```
+
+In CI, the workflow handles this automatically:
+- **`wheelhouse` job**: Creates pip dependency cache (network enabled)
+- **`test-cpu` & `quick-benchmark` jobs**: Use wheelhouse offline (ROOTAI_OFFLINE=1)
+- **`omw-download` job**: Downloads OMW/OEWN data (network enabled)
+- Other jobs use artifacts without network
+
+### Wheelhouse Install (Offline)
+
+CI uses a wheelhouse for fully offline pip installs:
+
+```bash
+# 1. Create wheelhouse (network required)
+pip download -r requirements.txt -d wheelhouse
+
+# 2. Install offline (no network, no PyPI)
+pip install --no-index --find-links ./wheelhouse -r requirements.txt
+```
+
+This ensures Copilot agents and CI can install dependencies without hitting forbidden domains.
+
 ## Directory Structure
 
 ```
@@ -36,6 +72,8 @@ dictionaries/
 ---
 
 ## Downloading Dictionaries
+
+### For Local Development (Network Available)
 
 ### Option 1: Using RootAI CLI (Recommended)
 
@@ -63,7 +101,7 @@ Download OMW and OEWN using the `wn` library:
 # Install wn library
 pip install wn
 
-# Download lexicons
+# Download lexicons (requires network)
 python -m rootai.data.pull_dictionaries \
   --dest data/dictionaries/omw \
   --sets oewn:2024 omw:1.4 omw-arb:1.4
@@ -87,6 +125,25 @@ bash data/fetch_dictionaries.sh
 This downloads:
 - `wiktextract/enwiktionary.jsonl.gz` (~2-5 GB compressed)
 - SHA256 checksum to `checksums/enwiktionary.sha256`
+
+### For CI/Copilot (Offline Mode)
+
+In GitHub Actions, downloads happen in dedicated jobs:
+
+```yaml
+# CI workflow handles this automatically
+jobs:
+  wheelhouse:
+    # Creates pip dependency cache
+  omw-download:
+    # Downloads OMW/OEWN data
+  test-cpu:
+    # Uses wheelhouse + artifacts (offline)
+    env:
+      ROOTAI_OFFLINE: "1"
+```
+
+Copilot agents skip network operations when `ROOTAI_OFFLINE=1` is set.
 
 ---
 

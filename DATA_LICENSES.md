@@ -2,6 +2,12 @@
 
 This document describes the licenses and attribution requirements for external data sources used by RootAI.
 
+## Offline Mode Note
+
+**GitHub Copilot agents and CI environments run offline** to avoid network firewall blocks. Dictionary downloads happen in GitHub Actions with network access, then artifacts are cached and reused. Set `ROOTAI_OFFLINE=1` to skip network operations locally.
+
+See `data/dictionaries/README.md` for details on offline workflow and wheelhouse installs.
+
 ## Summary
 
 RootAI can integrate with several open lexical resources. Each has specific license requirements that **you must comply with** when using the data:

@@ -19,9 +19,13 @@ Usage:
 
 Requirements:
     pip install wn
+
+Offline mode:
+    Set ROOTAI_OFFLINE=1 to skip network downloads (for CI/offline environments)
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
 from typing import List
@@ -65,10 +69,20 @@ def download_lexicon_set(lexicon_spec: str) -> dict:
         Dictionary with download statistics
         
     Raises:
-        RuntimeError: If download fails
+        RuntimeError: If download fails or offline mode is enabled
     """
     if not WN_AVAILABLE:
         raise RuntimeError("wn library not available")
+    
+    # Check for offline mode
+    if os.environ.get('ROOTAI_OFFLINE', '').lower() in ('1', 'true', 'yes'):
+        print(f"\n⚠ OFFLINE MODE: Skipping download of {lexicon_spec}")
+        print("  Run in CI job 'omw-download' or locally without ROOTAI_OFFLINE=1")
+        return {
+            "lexicon": lexicon_spec,
+            "success": False,
+            "error": "Offline mode enabled (ROOTAI_OFFLINE=1)"
+        }
     
     print(f"\nDownloading lexicon: {lexicon_spec}")
     print("-" * 60)
