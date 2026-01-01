@@ -28,14 +28,23 @@ from core.graph_sharding import GraphSharding, create_sample_index
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Rate limiting configuration
-RATE_LIMIT_REQUESTS = int(os.environ.get("RATE_LIMIT_REQUESTS", "100"))
-RATE_LIMIT_WINDOW = int(os.environ.get("RATE_LIMIT_WINDOW", "60"))  # seconds
+# Rate limiting configuration with validation
+RATE_LIMIT_REQUESTS = max(1, int(os.environ.get("RATE_LIMIT_REQUESTS", "100")))
+RATE_LIMIT_WINDOW = max(1, int(os.environ.get("RATE_LIMIT_WINDOW", "60")))  # seconds
 rate_limit_store = defaultdict(lambda: {"count": 0, "reset_time": time.time() + RATE_LIMIT_WINDOW})
 
-# Input validation limits
-MAX_QUERY_LENGTH = int(os.environ.get("MAX_QUERY_LENGTH", "5000"))
-MIN_QUERY_LENGTH = int(os.environ.get("MIN_QUERY_LENGTH", "1"))
+# Input validation limits with validation
+MAX_QUERY_LENGTH = max(1, int(os.environ.get("MAX_QUERY_LENGTH", "5000")))
+MIN_QUERY_LENGTH = max(1, int(os.environ.get("MIN_QUERY_LENGTH", "1")))
+
+# Ensure MAX > MIN
+if MAX_QUERY_LENGTH <= MIN_QUERY_LENGTH:
+    logger.warning(f"MAX_QUERY_LENGTH ({MAX_QUERY_LENGTH}) must be > MIN_QUERY_LENGTH ({MIN_QUERY_LENGTH}). Using defaults.")
+    MAX_QUERY_LENGTH = 5000
+    MIN_QUERY_LENGTH = 1
+
+# Valid language hints
+VALID_LANGUAGES = ['ar', 'en', 'es', 'fr', 'de', 'auto']
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -97,9 +106,8 @@ class ReasonRequest(BaseModel):
     def validate_language_hint(cls, v: Optional[str]) -> Optional[str]:
         """Validate language hint."""
         if v is not None:
-            valid_languages = ['ar', 'en', 'es', 'fr', 'de', 'auto']
-            if v.lower() not in valid_languages:
-                raise ValueError(f"Invalid language hint. Must be one of: {', '.join(valid_languages)}")
+            if v.lower() not in VALID_LANGUAGES:
+                raise ValueError(f"Invalid language hint. Must be one of: {', '.join(VALID_LANGUAGES)}")
             return v.lower()
         return v
     
@@ -123,7 +131,12 @@ async def rate_limit_middleware(request: Request, call_next):
         return await call_next(request)
     
     # Get client identifier (IP address)
-    client_ip = request.client.host if request.client else "unknown"
+    # Check for proxy headers first (X-Forwarded-For, X-Real-IP)
+    client_ip = request.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+    if not client_ip:
+        client_ip = request.headers.get("X-Real-IP", "")
+    if not client_ip:
+        client_ip = request.client.host if request.client else "unknown"
     
     # Check rate limit
     current_time = time.time()
