@@ -30,16 +30,27 @@ except ImportError:
     Analyzer = None
 
 from .graph_sharding import GraphSharding
+from .semantic_grounding import SemanticGroundingLayer
+
+try:
+    import openai
+except ImportError:
+    print("Warning: openai not installed. Install with: pip install openai")
+    openai = None
 
 
 class RootReasoner:
     """
-    Main reasoning engine combining root decomposition, graph retrieval, and T5 generation.
+    Main reasoning engine combining root decomposition, graph retrieval, and T5/GPT generation.
     
     Pipeline:
     1. Decompose: Extract Arabic roots using morphological analysis
     2. Graph: Retrieve similar roots from Faiss index
-    3. T5: Generate final answer using retrieved context
+    3. Generate: Use T5 or GPT (hybrid mode) for final answer
+    
+    Supports hybrid architecture:
+    - Stage 1 (RootAI): Semantic grounding through root decomposition and graph retrieval
+    - Stage 2 (GPT): Natural language generation with grounded context
     """
     
     def __init__(
@@ -47,7 +58,9 @@ class RootReasoner:
         model_name: str = "google/t5-v1_1-base",
         graph_index_path: Optional[str] = None,
         use_gpu: bool = True,
-        max_length: int = 512
+        max_length: int = 512,
+        openai_api_key: Optional[str] = None,
+        gpt_model: str = "gpt-3.5-turbo"
     ):
         """
         Initialize the root reasoner.
@@ -57,6 +70,8 @@ class RootReasoner:
             graph_index_path: Path to pre-built Faiss index
             use_gpu: Whether to use GPU acceleration (can be overridden by ROOTAI_USE_GPU env var)
             max_length: Maximum sequence length for T5
+            openai_api_key: Optional OpenAI API key for GPT integration
+            gpt_model: GPT model to use (e.g., 'gpt-3.5-turbo', 'gpt-4')
         """
         # Check environment variable for GPU usage
         env_use_gpu = os.environ.get("ROOTAI_USE_GPU", "").lower()
@@ -69,12 +84,21 @@ class RootReasoner:
         self.use_gpu = use_gpu
         self.max_length = max_length
         self.device = "cuda" if use_gpu and torch and torch.cuda.is_available() else "cpu"
+        self.gpt_model = gpt_model
         
         # Initialize components
         self.tokenizer = None
         self.model = None
         self.analyzer = None
         self.graph_sharder = None
+        self.grounding_layer = SemanticGroundingLayer(template_style="conversational")
+        
+        # Set up OpenAI if API key provided
+        self.openai_client = None
+        if openai_api_key and openai:
+            self.openai_client = openai.OpenAI(api_key=openai_api_key)
+        elif openai_api_key and not openai:
+            print("Warning: OpenAI API key provided but openai package not installed")
         
         # Load T5 model
         self._load_t5_model()
@@ -356,6 +380,137 @@ class RootReasoner:
         prompt = f"{context}Question: {query} Answer:"
         
         return prompt
+    
+    def generate_with_gpt(
+        self,
+        query: str,
+        context_roots: List[Dict],
+        max_tokens: int = 200,
+        temperature: float = 0.7,
+        template_style: str = "conversational"
+    ) -> str:
+        """
+        Generate answer using GPT with RootAI's semantic grounding.
+        
+        This implements Stage 2 of the hybrid architecture, using GPT for
+        natural language generation while maintaining factual accuracy through
+        RootAI's semantic constraints.
+        
+        Args:
+            query: Input question/query
+            context_roots: Root analysis with retrieved similar roots from RootAI
+            max_tokens: Maximum tokens to generate
+            temperature: Sampling temperature
+            template_style: Style of prompt template ('conversational', 'formal', 'concise')
+            
+        Returns:
+            Generated answer text from GPT
+        """
+        if not self.openai_client:
+            return "Error: OpenAI client not initialized. Provide API key or use T5 generation."
+        
+        # Use semantic grounding layer to create prompt
+        grounding = SemanticGroundingLayer(template_style=template_style)
+        semantic_context = grounding.format_semantic_context(
+            context_roots,
+            enhanced_roots=context_roots,
+            include_metadata=True
+        )
+        
+        # Create grounded prompt
+        grounded_prompt = grounding.create_grounded_prompt(
+            query,
+            semantic_context,
+            constraints=[
+                "Base your answer on the semantic relationships provided",
+                "Maintain factual accuracy",
+                "Be clear and conversational"
+            ]
+        )
+        
+        try:
+            # Call GPT API
+            response = self.openai_client.chat.completions.create(
+                model=self.gpt_model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a helpful assistant that provides accurate answers based on semantic context. Use the provided semantic roots and relationships to ground your responses."
+                    },
+                    {
+                        "role": "user",
+                        "content": grounded_prompt
+                    }
+                ],
+                max_tokens=max_tokens,
+                temperature=temperature
+            )
+            
+            answer = response.choices[0].message.content
+            return answer
+            
+        except Exception as e:
+            return f"Error calling GPT API: {str(e)}"
+    
+    def reason_hybrid(
+        self,
+        query: str,
+        k: int = 5,
+        max_tokens: int = 200,
+        use_gpt: bool = True,
+        temperature: float = 0.7
+    ) -> Dict:
+        """
+        Hybrid reasoning pipeline: RootAI (semantic grounding) → GPT (generation).
+        
+        This implements the two-stage hybrid architecture:
+        - Stage 1: RootAI performs semantic decomposition and graph retrieval
+        - Stage 2: GPT generates fluent responses guided by RootAI's grounding
+        
+        Args:
+            query: Input question/query
+            k: Number of similar roots to retrieve
+            max_tokens: Maximum tokens to generate
+            use_gpt: Whether to use GPT (True) or T5 (False) for generation
+            temperature: Sampling temperature for generation
+            
+        Returns:
+            Dictionary with reasoning steps and final answer
+        """
+        # Stage 1: RootAI Reasoning - Semantic Grounding
+        # Step 1.1: Decompose query to semantic roots
+        roots = self.decompose(query)
+        
+        # Step 1.2: Graph retrieve for verified semantic relationships
+        enhanced_roots = self.graph_retrieve(roots, k=k, query_text=query)
+        
+        # Stage 2: GPT Generation (or T5 fallback)
+        if use_gpt and self.openai_client:
+            answer = self.generate_with_gpt(
+                query,
+                enhanced_roots,
+                max_tokens=max_tokens,
+                temperature=temperature
+            )
+            pipeline = 'decompose → graph → GPT (hybrid)'
+        else:
+            # Fallback to T5 if GPT not available
+            answer = self.generate(
+                query,
+                enhanced_roots,
+                max_new_tokens=max_tokens,
+                temperature=temperature
+            )
+            pipeline = 'decompose → graph → T5'
+        
+        return {
+            'query': query,
+            'roots': roots,
+            'enhanced_roots': enhanced_roots,
+            'answer': answer,
+            'pipeline': pipeline,
+            'mode': 'hybrid' if use_gpt and self.openai_client else 't5_only'
+        }
     
     def reason(
         self,
