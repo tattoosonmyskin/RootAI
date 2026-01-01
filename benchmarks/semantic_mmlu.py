@@ -214,7 +214,7 @@ class SemanticMMLU:
             options: List of option strings
             
         Returns:
-            Predicted option index (0-3)
+            Predicted option index (0-3), or 0 if extraction fails
         """
         answer_text = answer_text.lower().strip()
         
@@ -228,8 +228,9 @@ class SemanticMMLU:
             if option.lower() in answer_text:
                 return i
         
-        # Default to random if unclear
-        return random.randint(0, len(options) - 1)
+        # Default to first option if unclear (conservative approach)
+        # Note: This may underestimate accuracy compared to random guessing
+        return 0
     
     def run_benchmark(
         self,

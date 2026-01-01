@@ -13,7 +13,8 @@ try:
     from transformers import T5Tokenizer, T5ForConditionalGeneration
     import torch
 except ImportError:
-    print("Warning: transformers or torch not installed")
+    print("Warning: transformers or torch not installed. Install with:")
+    print("  pip install transformers torch")
     T5Tokenizer = None
     T5ForConditionalGeneration = None
     torch = None
@@ -22,7 +23,8 @@ try:
     from camel_tools.morphology.database import MorphologyDB
     from camel_tools.morphology.analyzer import Analyzer
 except ImportError:
-    print("Warning: camel-tools not installed")
+    print("Warning: camel-tools not installed. Install with:")
+    print("  pip install camel-tools")
     MorphologyDB = None
     Analyzer = None
 

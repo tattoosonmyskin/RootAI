@@ -52,8 +52,7 @@ dev = [
     "mypy>=1.4.0",
 ]
 
-[project.scripts]
-rootai = "rootai.cli:main"
+# CLI available via rootai_cli.py script
 
 [project.urls]
 Homepage = "https://github.com/tattoosonmyskin/RootAI"
@@ -61,8 +60,8 @@ Repository = "https://github.com/tattoosonmyskin/RootAI"
 Documentation = "https://github.com/tattoosonmyskin/RootAI"
 
 [tool.setuptools]
-packages = ["rootai", "rootai.core", "rootai.api"]
-package-dir = {"" = "src"}
+packages = ["src", "src.core", "src.api"]
+package-dir = {"src" = "src"}
 
 [tool.black]
 line-length = 100
