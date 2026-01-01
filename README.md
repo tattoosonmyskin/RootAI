@@ -45,22 +45,27 @@ Query → Decompose (Arabic Roots) → Graph Retrieve (Faiss) → Generate (T5) 
 ### Prerequisites
 
 - Python 3.9+
-- CUDA 11.8+ (for GPU acceleration)
+- CUDA 11.8+ (optional, for GPU acceleration)
 - 8GB+ RAM (16GB recommended)
 
 ### Quick Start
+
+#### GPU Installation (Recommended for Performance)
 
 ```bash
 # Clone repository
 git clone https://github.com/tattoosonmyskin/RootAI.git
 cd RootAI
 
-# Install dependencies
+# Install GPU dependencies
 pip install torch --index-url https://download.pytorch.org/whl/cu118
 pip install faiss-gpu camel-tools transformers fastapi uvicorn
 
-# Or install from pyproject.toml
-pip install -e .
+# Or install from pyproject.toml with GPU extras
+pip install -e ".[gpu]"
+
+# Set environment variable for GPU usage
+export ROOTAI_USE_GPU=true
 
 # Fetch data
 cd data && ./fetch.sh && cd ..
@@ -72,14 +77,65 @@ python benchmarks/semantic_mmlu.py
 python api/fastapi_app.py
 ```
 
-### Docker Deployment
+#### CPU Installation (No GPU Required)
 
 ```bash
-# Build image
-docker build -t rootai:v3.0 .
+# Clone repository
+git clone https://github.com/tattoosonmyskin/RootAI.git
+cd RootAI
 
-# Run container
-docker run -p 8080:8080 rootai:v3.0
+# Install CPU dependencies
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install faiss-cpu camel-tools transformers fastapi uvicorn
+
+# Or install from pyproject.toml with CPU extras
+pip install -e ".[cpu]"
+
+# Set environment variable to use CPU mode
+export ROOTAI_USE_GPU=false
+
+# Fetch data
+cd data && ./fetch.sh && cd ..
+
+# Start API server
+python api/fastapi_app.py
+```
+
+#### Optional: Quantization Support
+
+If you need to quantize or fine-tune models, install `bitsandbytes`:
+
+```bash
+# Only needed for quantization or fine-tuning
+# Omit if unused to reduce size and avoid CUDA mismatches
+pip install -e ".[quantization]"
+```
+
+**Note**: `bitsandbytes` is optional and only necessary when quantizing or fine-tuning models. It's recommended to omit it if unused to reduce Docker image size and avoid CUDA version mismatches.
+
+### Docker Deployment
+
+#### CPU Mode (Default)
+
+```bash
+# Build CPU image
+docker build -t rootai:v3.0-cpu .
+
+# Run container in CPU mode
+docker run -p 8080:8080 -e ROOTAI_USE_GPU=false rootai:v3.0-cpu
+
+# Access API
+curl http://localhost:8080/health
+```
+
+#### GPU Mode
+
+```bash
+# Build GPU image
+docker build --build-arg ROOTAI_USE_GPU=true -t rootai:v3.0-gpu .
+
+# Run container with GPU support
+docker run --gpus all -p 8080:8080 -e ROOTAI_USE_GPU=true rootai:v3.0-gpu
 
 # Access API
 curl http://localhost:8080/health
@@ -88,17 +144,18 @@ curl http://localhost:8080/health
 ### Google Cloud Run Deployment
 
 ```bash
-# Build and push
+# Build and push (CPU mode for Cloud Run)
 gcloud builds submit --tag gcr.io/PROJECT_ID/rootai:v3.0
 
-# Deploy
+# Deploy with environment variable
 gcloud run deploy rootai \
   --image gcr.io/PROJECT_ID/rootai:v3.0 \
   --platform managed \
   --region us-central1 \
   --memory 4Gi \
   --cpu 2 \
-  --max-instances 10
+  --max-instances 10 \
+  --set-env-vars ROOTAI_USE_GPU=false
 ```
 
 ## 📖 Usage
@@ -197,10 +254,34 @@ RootAI/
 
 Environment variables:
 
+### Core Settings
+- `ROOTAI_USE_GPU`: Enable/disable GPU usage (`true` or `false`, default: `true`)
 - `ROOTAI_INDEX_PATH`: Path to Faiss index file (default: `data/roots.index`)
 - `PORT`: API server port (default: `8080`)
 - `TRANSFORMERS_CACHE`: Model cache directory
-- `CUDA_VISIBLE_DEVICES`: GPU selection
+- `HF_HOME`: HuggingFace cache directory
+- `CUDA_VISIBLE_DEVICES`: GPU selection (for multi-GPU systems)
+
+### API Rate Limiting
+- `RATE_LIMIT_REQUESTS`: Maximum requests per window (default: `100`)
+- `RATE_LIMIT_WINDOW`: Time window in seconds (default: `60`)
+
+### Input Validation
+- `MAX_QUERY_LENGTH`: Maximum query length in characters (default: `5000`)
+- `MIN_QUERY_LENGTH`: Minimum query length in characters (default: `1`)
+
+### Example Configuration
+
+```bash
+# CPU mode with custom rate limits
+export ROOTAI_USE_GPU=false
+export RATE_LIMIT_REQUESTS=200
+export RATE_LIMIT_WINDOW=60
+export MAX_QUERY_LENGTH=10000
+
+# Start API
+python api/fastapi_app.py
+```
 
 ## 📊 LegalTech Demo
 

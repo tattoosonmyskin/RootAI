@@ -16,10 +16,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements
 COPY pyproject.toml .
 
-# Install Python dependencies
+# Environment variable to control GPU usage (default: false for CPU)
+ARG ROOTAI_USE_GPU=false
+ENV ROOTAI_USE_GPU=${ROOTAI_USE_GPU}
+
+# Install Python dependencies based on GPU usage
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu118 && \
-    pip install --no-cache-dir faiss-gpu && \
+    if [ "$ROOTAI_USE_GPU" = "true" ]; then \
+        echo "Installing GPU dependencies..." && \
+        pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cu118 && \
+        pip install --no-cache-dir faiss-gpu; \
+    else \
+        echo "Installing CPU dependencies..." && \
+        pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
+        pip install --no-cache-dir faiss-cpu; \
+    fi && \
     pip install --no-cache-dir transformers camel-tools && \
     pip install --no-cache-dir fastapi uvicorn[standard] pydantic numpy scipy nltk sentencepiece datasets
 
@@ -54,6 +65,9 @@ ENV PYTHONPATH=/app
 ENV PORT=8080
 ENV TRANSFORMERS_CACHE=/app/cache
 ENV HF_HOME=/app/cache
+# Default to CPU mode - set ROOTAI_USE_GPU=true for GPU
+ARG ROOTAI_USE_GPU=false
+ENV ROOTAI_USE_GPU=${ROOTAI_USE_GPU}
 
 # Expose port
 EXPOSE 8080

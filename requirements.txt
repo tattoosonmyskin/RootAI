@@ -3,7 +3,17 @@
 
 # Core dependencies
 torch>=2.0.0
-faiss-gpu>=1.7.4
+
+# For GPU users (recommended for performance):
+# faiss-gpu>=1.7.4
+
+# For CPU users (use when GPU is not available):
+# faiss-cpu>=1.7.4
+
+# Note: Install either faiss-gpu OR faiss-cpu, not both
+# GPU: pip install faiss-gpu
+# CPU: pip install faiss-cpu
+
 camel-tools>=1.5.0
 transformers>=4.30.0
 sentencepiece>=0.1.99
@@ -25,7 +35,10 @@ nltk>=3.8.0
 # Utilities
 httpx>=0.24.0
 accelerate>=0.20.0
-bitsandbytes>=0.41.0
+
+# Optional: Only needed for quantization or fine-tuning models
+# Omit if unused to reduce size and avoid CUDA mismatches
+# bitsandbytes>=0.41.0
 
 # Development dependencies (optional)
 pytest>=7.4.0
