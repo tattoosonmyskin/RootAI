@@ -14,11 +14,8 @@ import argparse
 import json
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-
-from core.root_reasoner import RootReasoner
-from core.graph_sharding import GraphSharding, create_sample_index
+from rootai.core.root_reasoner import RootReasoner
+from rootai.core.graph_sharding import GraphSharding, create_sample_index
 
 
 def cmd_reason(args):
@@ -136,6 +133,86 @@ def cmd_server(args):
     )
 
 
+def cmd_dictionaries(args):
+    """Download dictionaries (OMW/OEWN and optionally Wiktextract)."""
+    import subprocess
+    from pathlib import Path
+    
+    print("RootAI Dictionary Downloader")
+    print("=" * 60)
+    
+    # Download OMW/OEWN via wn
+    print("\n1. Downloading OMW/OEWN lexicons via 'wn'...")
+    print("-" * 60)
+    
+    try:
+        from rootai.data.pull_dictionaries import pull_dictionaries
+        
+        pull_dictionaries(
+            dest=args.dest,
+            lexicon_sets=args.sets
+        )
+        print("✓ OMW/OEWN download complete")
+    except ImportError:
+        print("Error: wn library not installed")
+        print("Install with: pip install wn")
+        return
+    except Exception as e:
+        print(f"Error downloading OMW/OEWN: {e}")
+        return
+    
+    # Optionally download Wiktextract
+    if args.wiktextract:
+        print("\n2. Downloading Wiktextract data...")
+        print("-" * 60)
+        
+        script_path = Path(__file__).parent / "data" / "fetch_dictionaries.sh"
+        if not script_path.exists():
+            print(f"Error: Script not found: {script_path}")
+            return
+        
+        try:
+            result = subprocess.run(
+                ["bash", str(script_path)],
+                check=True,
+                cwd=Path(__file__).parent / "data"
+            )
+            print("✓ Wiktextract download complete")
+        except subprocess.CalledProcessError as e:
+            print(f"Error downloading Wiktextract: {e}")
+            return
+    
+    print("\n" + "=" * 60)
+    print("Dictionary download complete!")
+    print("See DATA_LICENSES.md for attribution requirements")
+    print("=" * 60)
+
+
+def cmd_wiktextract_parse(args):
+    """Parse Wiktextract JSONL.gz into graph-ready tables."""
+    from rootai.data.parse_wiktextract import WiktextractParser
+    
+    # Convert to sets
+    languages = set(args.langs)
+    pos_filter = set(args.pos_filter) if args.pos_filter else None
+    formats = set(args.formats)
+    
+    # Create and run parser
+    parser = WiktextractParser(
+        input_path=args.input,
+        output_dir=args.out_dir,
+        languages=languages,
+        pos_filter=pos_filter,
+        with_roots=args.with_roots,
+        formats=formats
+    )
+    
+    parser.run()
+    
+    print("\nParsing complete!")
+    print(f"Output directory: {args.out_dir}")
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -179,6 +256,27 @@ def main():
     server_parser.add_argument('--port', type=int, default=8080, help='Port number')
     server_parser.add_argument('--reload', action='store_true', help='Auto-reload on changes')
     
+    # Dictionaries command
+    dict_parser = subparsers.add_parser('dictionaries', help='Download dictionaries (OMW/OEWN/Wiktextract)')
+    dict_parser.add_argument('--dest', default='data/dictionaries', help='Destination directory')
+    dict_parser.add_argument('--sets', nargs='+', default=['oewn:2024', 'omw:1.4', 'omw-arb:1.4'],
+                            help='Lexicon sets to download (default: oewn:2024 omw:1.4 omw-arb:1.4)')
+    dict_parser.add_argument('--wiktextract', action='store_true',
+                            help='Also download Wiktextract data via fetch_dictionaries.sh')
+    
+    # Wiktextract parse command
+    wikt_parser = subparsers.add_parser('wiktextract-parse', help='Parse Wiktextract JSONL.gz')
+    wikt_parser.add_argument('--input', required=True, help='Input JSONL.gz file')
+    wikt_parser.add_argument('--out-dir', required=True, help='Output directory')
+    wikt_parser.add_argument('--langs', nargs='+', default=['ar', 'en'],
+                            help='Language codes to extract (default: ar en)')
+    wikt_parser.add_argument('--pos-filter', nargs='+', default=None,
+                            help='POS tags to include (default: all common POS)')
+    wikt_parser.add_argument('--with-roots', action='store_true',
+                            help='Extract Arabic roots via CAMeL Tools')
+    wikt_parser.add_argument('--formats', nargs='+', choices=['csv', 'parquet'],
+                            default=['csv', 'parquet'], help='Output formats')
+    
     args = parser.parse_args()
     
     if not args.command:
@@ -194,6 +292,10 @@ def main():
         cmd_index(args)
     elif args.command == 'server':
         cmd_server(args)
+    elif args.command == 'dictionaries':
+        cmd_dictionaries(args)
+    elif args.command == 'wiktextract-parse':
+        cmd_wiktextract_parse(args)
 
 
 if __name__ == '__main__':

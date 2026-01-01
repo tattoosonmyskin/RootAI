@@ -10,14 +10,9 @@ import time
 import random
 from typing import List, Dict, Tuple
 from dataclasses import dataclass
-import sys
-import os
 
-# Add src to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-
-from core.root_reasoner import RootReasoner
-from core.graph_sharding import create_sample_index
+from rootai.core.root_reasoner import RootReasoner
+from rootai.core.graph_sharding import create_sample_index
 
 
 @dataclass

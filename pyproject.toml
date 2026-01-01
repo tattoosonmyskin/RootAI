@@ -1,75 +1,52 @@
 [build-system]
-requires = ["setuptools>=65.0", "wheel"]
+requires = ["setuptools>=65.0","wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "rootai"
-version = "3.0.0"
-description = "RootAI v3.0: Root graphs + T5 hybrid reasoning system achieving 92% semantic accuracy"
+version = "3.0.1"
+description = "RootAI v3.0: Root graphs + T5/GPT hybrid reasoning"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
-authors = [
-    {name = "RootAI Team"}
-]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-]
-
+authors = [{name = "RootAI Team"}]
 dependencies = [
-    "torch>=2.0.0",
-    "camel-tools>=1.5.0",
-    "transformers>=4.30.0",
-    "fastapi>=0.100.0",
-    "uvicorn[standard]>=0.23.0",
-    "pydantic>=2.0.0",
-    "numpy>=1.24.0",
-    "scipy>=1.10.0",
-    "nltk>=3.8.0",
-    "sentencepiece>=0.1.99",
-    "datasets>=2.14.0",
-    "accelerate>=0.20.0",
-    "python-multipart>=0.0.6",
-    "httpx>=0.24.0",
-    "openai>=1.0.0",
+  "camel-tools>=1.5.0",
+  "transformers>=4.30.0",
+  "fastapi>=0.100.0",
+  "uvicorn[standard]>=0.23.0",
+  "pydantic>=2.0.0",
+  "numpy>=1.24.0",
+  "sentencepiece>=0.1.99",
+  "httpx>=0.24.0"
 ]
 
 [project.optional-dependencies]
-gpu = [
-    "faiss-gpu>=1.7.4",
-]
-cpu = [
-    "faiss-cpu>=1.7.4",
-]
-quantization = [
-    "bitsandbytes>=0.41.0",
-]
+cpu = ["faiss-cpu>=1.7.4"]
+gpu = ["torch>=2.0.0","faiss-gpu>=1.7.4","accelerate>=0.20.0","bitsandbytes>=0.41.0"]
+gpt = ["openai>=1.0.0"]
 dev = [
-    "pytest>=7.4.0",
-    "pytest-asyncio>=0.21.0",
-    "black>=23.7.0",
-    "ruff>=0.0.280",
-    "mypy>=1.4.0",
+  "pytest>=7.4.0",
+  "pytest-asyncio>=0.21.0",
+  "black>=23.7.0",
+  "ruff>=0.0.280",
+  "mypy>=1.4.0",
 ]
 
-# CLI available via rootai_cli.py script
+[project.scripts]
+rootai = "rootai_cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["rootai*"]
+
+[tool.setuptools.package-dir]
+"" = "src"
 
 [project.urls]
 Homepage = "https://github.com/tattoosonmyskin/RootAI"
 Repository = "https://github.com/tattoosonmyskin/RootAI"
 Documentation = "https://github.com/tattoosonmyskin/RootAI"
-
-[tool.setuptools]
-packages = ["src", "src.core", "src.api"]
-package-dir = {"src" = "src"}
 
 [tool.black]
 line-length = 100
