@@ -1,0 +1,35 @@
+# RootAI v3.0 Requirements
+# Install with: pip install -r requirements.txt
+
+# Core dependencies
+torch>=2.0.0
+faiss-gpu>=1.7.4
+camel-tools>=1.5.0
+transformers>=4.30.0
+sentencepiece>=0.1.99
+
+# API dependencies
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
+pydantic>=2.0.0
+python-multipart>=0.0.6
+
+# Data processing
+numpy>=1.24.0
+scipy>=1.10.0
+datasets>=2.14.0
+
+# NLP tools
+nltk>=3.8.0
+
+# Utilities
+httpx>=0.24.0
+accelerate>=0.20.0
+bitsandbytes>=0.41.0
+
+# Development dependencies (optional)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+black>=23.7.0
+ruff>=0.0.280
+mypy>=1.4.0
