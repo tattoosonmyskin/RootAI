@@ -14,11 +14,8 @@ import argparse
 import json
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-
-from core.root_reasoner import RootReasoner
-from core.graph_sharding import GraphSharding, create_sample_index
+from rootai.core.root_reasoner import RootReasoner
+from rootai.core.graph_sharding import GraphSharding, create_sample_index
 
 
 def cmd_reason(args):

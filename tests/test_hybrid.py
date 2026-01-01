@@ -5,16 +5,11 @@ Run with: pytest tests/test_hybrid.py -v
 """
 
 import pytest
-import sys
-from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-from core.semantic_grounding import SemanticGroundingLayer, create_grounded_prompt_simple
-from core.root_reasoner import RootReasoner
-from core.graph_sharding import create_sample_index
+from rootai.core.semantic_grounding import SemanticGroundingLayer, create_grounded_prompt_simple
+from rootai.core.root_reasoner import RootReasoner
+from rootai.core.graph_sharding import create_sample_index
 
 
 class TestSemanticGroundingLayer:
@@ -192,7 +187,7 @@ class TestHybridReasoner:
     
     def test_reasoner_init_with_openai_key(self):
         """Test reasoner initialization with OpenAI key."""
-        with patch('core.root_reasoner.openai') as mock_openai:
+        with patch('rootai.core.root_reasoner.openai') as mock_openai:
             mock_openai.OpenAI = Mock()
             reasoner = RootReasoner(
                 use_gpu=False,
@@ -211,7 +206,7 @@ class TestHybridReasoner:
         assert "Error" in result
         assert "OpenAI client not initialized" in result
     
-    @patch('core.root_reasoner.openai')
+    @patch('rootai.core.root_reasoner.openai')
     def test_generate_with_gpt_success(self, mock_openai):
         """Test successful GPT generation."""
         # Mock OpenAI client
@@ -232,7 +227,7 @@ class TestHybridReasoner:
         assert result == "This is a test answer"
         mock_client.chat.completions.create.assert_called_once()
     
-    @patch('core.root_reasoner.openai')
+    @patch('rootai.core.root_reasoner.openai')
     def test_reason_hybrid_with_gpt(self, mock_openai):
         """Test hybrid reasoning pipeline with GPT."""
         # Mock OpenAI client
@@ -327,7 +322,7 @@ class TestIntegrationHybrid:
         prompt = grounding.create_grounded_prompt(query, context)
         assert query in prompt
     
-    @patch('core.root_reasoner.openai')
+    @patch('rootai.core.root_reasoner.openai')
     def test_two_stage_hybrid_architecture(self, mock_openai):
         """Test the complete two-stage hybrid architecture."""
         # Setup mock

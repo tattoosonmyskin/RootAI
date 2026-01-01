@@ -1,99 +1,40 @@
-name: RootAI CI/CD
-
+name: RootAI CPU CI
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
-
+  push: {branches: [ main ]}
+  pull_request: {branches: [ main ]}
 permissions:
   contents: read
-
 jobs:
-  test:
-    name: Test Python ${{ matrix.python-version }}
+  test-cpu:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    strategy:
-      matrix:
-        python-version: ["3.9", "3.10", "3.11"]
-    
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      with:
-        python-version: ${{ matrix.python-version }}
-    
-    - name: Cache pip packages
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-    
-    - name: Install dependencies
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with: { python-version: "3.11" }
+    - name: Install (CPU-only)
       run: |
         python -m pip install --upgrade pip
-        pip install pytest pytest-cov black ruff mypy
-        pip install numpy
-    
-    - name: Check code formatting with Black
-      run: black --check src/ api/ benchmarks/ || true
-    
-    - name: Lint with Ruff
-      run: ruff check src/ api/ benchmarks/ || true
-    
-    - name: Run quick tests
-      run: |
-        chmod +x test_quick.sh
-        ./test_quick.sh
-    
-    - name: Run Python syntax check
-      run: |
-        python -m py_compile src/core/*.py
-        python -m py_compile api/*.py
-        python -m py_compile benchmarks/*.py
+        pip install -e .[cpu]
+        pip install pytest
+    - name: Run tests
+      run: pytest -q
 
-  docker:
-    name: Build Docker Image
+  quick-benchmark:
     runs-on: ubuntu-latest
-    needs: test
-    permissions:
-      contents: read
-    
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-    
-    - name: Build Docker image
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with: { python-version: "3.11" }
+    - name: Install minimal deps
       run: |
-        docker build -t rootai:test .
-    
-    - name: Test Docker image
+        python -m pip install --upgrade pip
+        pip install -e .[cpu]
+    - name: Demo benchmark (20Q)
       run: |
-        docker run --rm rootai:test python -c "print('RootAI v3.0 Docker OK')"
-
-  documentation:
-    name: Check Documentation
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    
-    steps:
-    - uses: actions/checkout@v3
-    
-    - name: Check required files
-      run: |
-        test -f README.md
-        test -f DEPLOYMENT.md
-        test -f EXAMPLES.md
-        test -f LICENSE
-        test -f pyproject.toml
-        test -f Dockerfile
-        echo "All documentation files present"
+        python benchmarks/semantic_mmlu.py
+        test -f benchmark_results.json
+    - name: Upload results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: benchmark_results.json

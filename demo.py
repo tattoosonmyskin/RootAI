@@ -16,9 +16,6 @@ import sys
 import time
 from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-
 print("=" * 70)
 print("RootAI v3.0 - Complete Demo")
 print("Root graphs + T5 hybrid reasoning system")
@@ -30,7 +27,7 @@ print("DEMO 1: Graph Sharding with Faiss")
 print("-" * 70)
 
 try:
-    from core.graph_sharding import create_sample_index
+    from rootai.core.graph_sharding import create_sample_index
     import numpy as np
     
     print("Creating sample index with 1000 roots...")
@@ -59,7 +56,7 @@ print("DEMO 2: Arabic Root Decomposition")
 print("-" * 70)
 
 try:
-    from core.root_reasoner import RootReasoner
+    from rootai.core.root_reasoner import RootReasoner
     
     print("Initializing RootReasoner...")
     reasoner = RootReasoner(use_gpu=False)

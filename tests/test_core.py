@@ -6,14 +6,9 @@ Run with: pytest tests/test_core.py -v
 
 import pytest
 import numpy as np
-import sys
-from pathlib import Path
 
-# Add src to path
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-from core.graph_sharding import GraphSharding, create_sample_index
-from core.root_reasoner import RootReasoner
+from rootai.core.graph_sharding import GraphSharding, create_sample_index
+from rootai.core.root_reasoner import RootReasoner
 
 
 class TestGraphSharding:

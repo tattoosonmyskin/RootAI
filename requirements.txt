@@ -1,51 +1,18 @@
-# RootAI v3.0 Requirements
+# RootAI v3.0 Requirements (CPU-first for CI)
 # Install with: pip install -r requirements.txt
 
-# Core dependencies
-torch>=2.0.0
-
-# For GPU users (recommended for performance):
-# faiss-gpu>=1.7.4
-
-# For CPU users (use when GPU is not available):
-# faiss-cpu>=1.7.4
-
-# Note: Install either faiss-gpu OR faiss-cpu, not both
-# GPU: pip install faiss-gpu
-# CPU: pip install faiss-cpu
-
+# Core dependencies (required)
 camel-tools>=1.5.0
 transformers>=4.30.0
 sentencepiece>=0.1.99
-
-# GPT/LLM integration
-openai>=1.0.0
-
-# API dependencies
 fastapi>=0.100.0
 uvicorn[standard]>=0.23.0
 pydantic>=2.0.0
-python-multipart>=0.0.6
-
-# Data processing
 numpy>=1.24.0
-scipy>=1.10.0
-datasets>=2.14.0
-
-# NLP tools
-nltk>=3.8.0
-
-# Utilities
 httpx>=0.24.0
-accelerate>=0.20.0
 
-# Optional: Only needed for quantization or fine-tuning models
-# Omit if unused to reduce size and avoid CUDA mismatches
-# bitsandbytes>=0.41.0
+# CPU-safe Faiss for CI/CD
+faiss-cpu>=1.7.4
 
-# Development dependencies (optional)
-pytest>=7.4.0
-pytest-asyncio>=0.21.0
-black>=23.7.0
-ruff>=0.0.280
-mypy>=1.4.0
+# Optional (local only, comment out for CI)
+# openai>=1.0.0

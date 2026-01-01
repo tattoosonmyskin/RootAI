@@ -17,12 +17,8 @@ from collections import defaultdict
 import asyncio
 
 # Import RootAI components
-import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
-
-from core.root_reasoner import RootReasoner
-from core.graph_sharding import GraphSharding, create_sample_index
+from rootai.core.root_reasoner import RootReasoner
+from rootai.core.graph_sharding import GraphSharding, create_sample_index
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
