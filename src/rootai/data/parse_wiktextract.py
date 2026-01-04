@@ -24,15 +24,15 @@ Requirements:
 """
 
 import argparse
+import csv
 import gzip
 import hashlib
 import json
-import sys
 import unicodedata
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Set, Optional, TextIO, Any
+from typing import Dict, Set, Optional, Any
 
 # Try importing optional dependencies
 try:
@@ -168,6 +168,7 @@ class WiktextractParser:
                 pattern = analysis.get('pattern', None)
                 return root, pattern
         except Exception:
+            # Silently ignore CAMeL Tools analysis errors (invalid input, parsing failures, etc.)
             pass
         
         return None, None
@@ -247,7 +248,7 @@ class WiktextractParser:
             'pattern': pattern or '',
             'sense_gloss': sense_gloss,
             'sense_examples': json.dumps(sense_examples) if sense_examples else '',
-            'etymology': etymology[:200] if etymology else '',  # Limit length
+            'etymology': etymology[:200] if etymology else '',  # Limit length (safe for UTF-8)
             'source': 'kaikki.org/enwiktionary',
             'license': 'CC-BY-SA/GFDL'
         }
@@ -292,23 +293,25 @@ class WiktextractParser:
         if not force and len(buffer) < self.buffer_size:
             return
         
-        # Write CSV
+        # Write CSV using proper csv.writer for correct escaping
         if 'csv' in self.formats:
             csv_path = self.output_dir / f"lemmas_{lang}.csv"
             mode = 'a' if csv_path.exists() else 'w'
             
-            with open(csv_path, mode, encoding='utf-8') as f:
+            with open(csv_path, mode, encoding='utf-8', newline='') as f:
+                writer = csv.writer(f)
                 if mode == 'w':
                     # Write header
-                    f.write(','.join(CANONICAL_COLUMNS) + '\n')
+                    writer.writerow(CANONICAL_COLUMNS)
                 
                 # Write rows
                 for entry in buffer:
-                    row = [str(entry.get(col, '')).replace(',', ';').replace('\n', ' ') 
-                           for col in CANONICAL_COLUMNS]
-                    f.write(','.join(row) + '\n')
+                    row = [entry.get(col, '') for col in CANONICAL_COLUMNS]
+                    writer.writerow(row)
         
         # Write Parquet (append mode)
+        # Note: This loads existing file into memory for append. For very large files (multi-GB),
+        # this may cause memory issues. Consider using separate files per buffer flush or batch mode.
         if 'parquet' in self.formats and PARQUET_AVAILABLE:
             parquet_path = self.output_dir / f"lemmas_{lang}.parquet"
             
@@ -319,7 +322,7 @@ class WiktextractParser:
             
             # Append or create
             if parquet_path.exists():
-                # Read existing and concatenate
+                # Read existing and concatenate (memory-intensive for large files)
                 existing = pq.read_table(parquet_path)
                 table = pa.concat_tables([existing, table])
             

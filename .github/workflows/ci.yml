@@ -17,6 +17,7 @@ jobs:
       run: |
         python -m pip install --upgrade pip wheel
         mkdir -p wheelhouse
+        echo "Attempting binary-only download (may fail for packages without wheels, will fall back to source)"
         pip download -r requirements.txt -d wheelhouse --only-binary=:all: || pip download -r requirements.txt -d wheelhouse
         pip download pytest -d wheelhouse --only-binary=:all: || pip download pytest -d wheelhouse
     - name: Cache wheelhouse

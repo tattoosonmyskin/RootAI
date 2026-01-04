@@ -8,18 +8,9 @@ from Arabic root embeddings using CAMeL Tools or fallback methods.
 
 import argparse
 import pickle
-import sys
 from pathlib import Path
 from typing import List, Dict, Optional
 import numpy as np
-
-try:
-    from camel_tools.morphology.database import MorphologyDB
-    from camel_tools.morphology.analyzer import Analyzer
-    CAMEL_AVAILABLE = True
-except ImportError:
-    CAMEL_AVAILABLE = False
-    print("Warning: camel-tools not available. Using fallback embeddings.")
 
 try:
     from transformers import T5Tokenizer, T5ForConditionalGeneration
@@ -29,7 +20,7 @@ except ImportError:
     TRANSFORMERS_AVAILABLE = False
     print("Warning: transformers not available. Using random embeddings.")
 
-from ..graph_sharding import GraphSharding
+from rootai.core.graph_sharding import GraphSharding
 
 
 def generate_sample_roots(n_roots: int = 1000, seed: int = 42) -> List[Dict]:

@@ -6,7 +6,6 @@ Run with: pytest tests/test_wiktextract_parse.py -v
 
 import pytest
 import json
-import gzip
 from pathlib import Path
 import tempfile
 import shutil
@@ -232,12 +231,35 @@ class TestWiktextractParser:
         with open(stats_json) as f:
             stats = json.load(f)
         
+        # Verify total counts
         assert stats['total_lines'] == 6  # 6 entries in fixture
-        assert stats['filtered_entries'] == 5  # 5 entries (French filtered)
+        assert stats['filtered_entries'] == 5  # 5 entries (French filtered out)
+        
+        # Verify language breakdown
         assert 'ar' in stats['by_language']
         assert 'en' in stats['by_language']
-        assert stats['by_language']['ar'] == 2  # 2 Arabic entries
-        assert stats['by_language']['en'] == 3  # 3 English entries
+        assert stats['by_language']['ar'] == 2  # 2 Arabic entries (noun, verb)
+        assert stats['by_language']['en'] == 3  # 3 English entries (noun, verb, adj)
+        
+        # Verify French was filtered out
+        assert 'fr' not in stats['by_language'], "French entries should be filtered"
+        
+        # Verify actual content in CSV files
+        with open(en_csv, encoding='utf-8') as f:
+            en_lines = f.readlines()
+            assert len(en_lines) == 4  # Header + 3 entries
+            # Check that 'book', 'write', 'quick' are present
+            content = ''.join(en_lines)
+            assert 'book' in content, "English 'book' entry missing"
+            assert 'write' in content, "English 'write' entry missing"
+            assert 'quick' in content, "English 'quick' entry missing"
+        
+        with open(ar_csv, encoding='utf-8') as f:
+            ar_lines = f.readlines()
+            assert len(ar_lines) == 3  # Header + 2 entries
+            # Check that Arabic entries are present
+            content = ''.join(ar_lines)
+            assert 'كتاب' in content or 'كتب' in content, "Arabic entries missing"
     
     def test_parse_with_examples(self, fixture_path, temp_output_dir):
         """Test parsing entries with examples."""

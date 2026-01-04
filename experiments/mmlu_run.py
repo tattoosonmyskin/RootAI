@@ -10,11 +10,8 @@ For CI/CD, use the demo benchmark in benchmarks/semantic_mmlu.py instead.
 """
 
 import argparse
-import csv
-import json
 import random
 from datetime import datetime
-from pathlib import Path
 from typing import List, Dict
 
 from rootai.core.root_reasoner import RootReasoner

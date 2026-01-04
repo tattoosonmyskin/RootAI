@@ -18,7 +18,7 @@ import asyncio
 
 # Import RootAI components
 from rootai.core.root_reasoner import RootReasoner
-from rootai.core.graph_sharding import GraphSharding, create_sample_index
+from rootai.core.graph_sharding import create_sample_index
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

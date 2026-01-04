@@ -172,7 +172,7 @@ def cmd_dictionaries(args):
             return
         
         try:
-            result = subprocess.run(
+            subprocess.run(
                 ["bash", str(script_path)],
                 check=True,
                 cwd=Path(__file__).parent / "data"
