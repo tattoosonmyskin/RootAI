@@ -1,0 +1,63 @@
+import os
+import yaml
+from deconstructor import deconstruct
+from integrity_manager import verify_worm_integrity, evaluate_source_quality
+from kg_navigator import KnowledgeGraphNavigator
+
+
+class SecurityError(Exception):
+    """Raised when a security integrity check fails."""
+    pass
+
+
+class RootAIPipeline:
+    def __init__(self):
+        # Resource Manager Configuration
+        self.WORM_PATH = os.getenv("WORM_PATH", "secure-code.yaml")
+        self.EXPECTED_HASH = os.getenv("WORM_EXPECTED_HASH", "")  # Defined in Central Manifest
+
+        # Knowledge Graph Navigator (Path A)
+        neo4j_uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+        neo4j_user = os.getenv("NEO4J_USER", "neo4j")
+        neo4j_password = os.getenv("NEO4J_PASSWORD", "")
+        self.kg = KnowledgeGraphNavigator(neo4j_uri, neo4j_user, neo4j_password)
+
+    def execute(self, user_query: str):
+        print(f"[*] Analyzing Query: {user_query}")
+
+        # 1. Prompt Analyzer
+        analysis = deconstruct(user_query)
+        terms = analysis['nouns']
+
+        # 2. Path A: Knowledge Graph Navigator (Meaning)
+        # Pulls semantic context from the seeded etymological graph
+        semantic_map = self.kg.get_semantic_context(terms)
+
+        # 3. Path B: Resource Manager (Context & WORM)
+        # Strict integrity check before accessing grounding data
+        if not verify_worm_integrity(self.WORM_PATH, self.EXPECTED_HASH):
+            raise SecurityError("WORM Integrity Compromised!")
+
+        with open(self.WORM_PATH, 'r') as f:
+            grounding_data = yaml.safe_load(f)
+
+        # 4. Reasoning Bridge & Constraint Checker (Synthesis)
+        # Using poc-v2 quality scoring to evaluate Path B
+        quality_report = evaluate_source_quality(yaml.dump(grounding_data), len(grounding_data))
+
+        # Construct the "Verified Execution Plan"
+        verified_plan = {
+            "intent": user_query,
+            "semantic_roots": semantic_map,
+            "hard_constraints": grounding_data.get('constraints', {}).get('hard', []),
+            "reliability": quality_report.score,
+            "hallucination_risk": "low" if quality_report.score > 0.7 else "high"
+        }
+
+        return verified_plan
+
+
+# Usage
+if __name__ == "__main__":
+    root_ai = RootAIPipeline()
+    plan = root_ai.execute("Create an auth session with JWT")
