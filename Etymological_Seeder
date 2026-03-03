@@ -1,0 +1,31 @@
+from neo4j import GraphDatabase
+
+def seed_graph(uri, user, password):
+    driver = GraphDatabase.driver(uri, auth=(user, password))
+    with driver.session() as session:
+        # Initializing the Etymological Graph for Path A 
+        cypher_query = """
+        // 1. Create Core Roots
+        CREATE (auth:EtymologicalRoot {name: 'auth', definition: 'The process of identity verification'})
+        CREATE (session:EtymologicalRoot {name: 'session', definition: 'The persistent state of communication'})
+        CREATE (inject:EtymologicalRoot {name: 'inject', definition: 'The untrusted insertion of external data'})
+
+        // 2. Map Related Concepts (The "Concept Map") 
+        CREATE (identity:Concept {name: 'identity'})
+        CREATE (token:Concept {name: 'token'})
+        CREATE (state:Concept {name: 'state'})
+        CREATE (persistence:Concept {name: 'persistence'})
+        CREATE (sanitization:Concept {name: 'sanitization'})
+
+        // 3. Establish Relationships for Reasoning Bridge 
+        CREATE (auth)-[:DEFINES]->(identity)
+        CREATE (auth)-[:UTILIZES]->(token)
+        CREATE (session)-[:REQUIRES]->(state)
+        CREATE (session)-[:MAINTAINS]->(persistence)
+        CREATE (inject)-[:REQUIRES]->(sanitization)
+        """
+        session.run(cypher_query)
+    driver.close()
+    print("RootAI Etymological Graph Seeded Successfully.")
+
+seed_graph("bolt://localhost:7687", "neo4j", "rootai")
