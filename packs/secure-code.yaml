@@ -1,0 +1,13 @@
+version: "1.0"
+constraints:
+  hard:
+    - "No use of eval() or exec()"
+    - "All inputs must be validated and sanitized"
+    - "Authentication required for protected actions"
+    - "Use prepared statements for database queries"
+    - "Secrets must not be hardcoded in source code"
+    - "Use HTTPS for all external communications"
+  soft:
+    - "Prefer immutable data structures where possible"
+    - "Use logging for audit trails of sensitive operations"
+    - "Follow the principle of least privilege"
