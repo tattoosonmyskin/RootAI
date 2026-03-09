@@ -23,5 +23,5 @@ COPY . .
 # Expose FastAPI port
 EXPOSE 8000
 
-# Start the API with uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start the API with uvicorn (Option 2 entrypoint)
+CMD ["uvicorn", "rootai.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
