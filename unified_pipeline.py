@@ -32,7 +32,7 @@ class RootAIPipeline:
             grounding_data = yaml.safe_load(f)
 
         # 4. Reasoning Bridge & Constraint Checker (Synthesis)
-        # Using poc-v2 quality scoring to evaluate Path B
+        # Using poc_v2 quality scoring to evaluate Path B
         quality_report = evaluate_source_quality(str(grounding_data), len(grounding_data))
         
         # Construct the "Verified Execution Plan"
@@ -46,6 +46,7 @@ class RootAIPipeline:
 
         return verified_plan
 
-# Usage
-root_ai = RootAIPipeline()
-plan = root_ai.execute("Create an auth session with JWT")
+
+if __name__ == "__main__":
+    root_ai = RootAIPipeline()
+    plan = root_ai.execute("Create an auth session with JWT")

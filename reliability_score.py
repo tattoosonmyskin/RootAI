@@ -9,8 +9,8 @@ class ReliabilityReport(BaseModel):
 
 def evaluate_source_quality(content: str, source_count: int) -> ReliabilityReport:
     """
-    Ported from poc-v2: Logic & Constraint Checker logic.
-    Analyzes quality based on specific data points and structure[cite: 24].
+    Ported from poc_v2: Logic & Constraint Checker logic.
+    Analyzes quality based on specific data points and structure.
     """
     indicators = {
         "has_citations": "[" in content and "]" in content,
@@ -18,12 +18,12 @@ def evaluate_source_quality(content: str, source_count: int) -> ReliabilityRepor
         "reasonable_length": len(content) > 200,
         "has_multiple_sources": source_count > 1
     }
-    
-    # Calculate score as a percentage of passed checks [cite: 24]
+
+    # Calculate score as a percentage of passed checks
     passed_checks = sum(1 for v in indicators.values() if v)
     score = passed_checks / len(indicators)
-    
-    assessment = "high" if score > 0.7 else "medium" if score > 0.4 else "low" [cite: 25]
+
+    assessment = "high" if score > 0.7 else "medium" if score > 0.4 else "low"
     
     return ReliabilityReport(score=score, assessment=assessment, indicators=indicators)
 

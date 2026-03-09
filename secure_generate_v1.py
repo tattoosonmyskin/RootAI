@@ -7,18 +7,18 @@ def secure_generate(q: Query):
 
     # 2. Path A & B Synthesis (Reasoning Bridge)
     blueprint = {
-        "instruction": "Synthesize secure code plan", [cite: 27]
-        "constraints": ["no eval", "JWT auth", "prepared statements"], [cite: 27]
+        "instruction": "Synthesize secure code plan",
+        "constraints": ["no eval", "JWT auth", "prepared statements"],
         "quality": evaluate_source_quality("Sample grounding text...", 2)
     }
 
     # 3. Validation (Causal & Constraint Checker)
-    # If quality is 'low', we flag high hallucination risk [cite: 38, 39]
-    risk = "low" if blueprint["quality"].assessment == "high" else "medium" [cite: 39]
+    # If quality is 'low', we flag high hallucination risk
+    risk = "low" if blueprint["quality"].assessment == "high" else "medium"
 
     return {
         "query": q.query,
         "blueprint": blueprint,
         "hallucination_risk": risk,
-        "confidence": blueprint["quality"].score [cite: 38]
+        "confidence": blueprint["quality"].score
     }
