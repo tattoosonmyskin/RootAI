@@ -1,5 +1,7 @@
 import os
 import hashlib
+import hmac
+
 
 class AuthorityGate:
     def __init__(self):
@@ -12,13 +14,16 @@ class AuthorityGate:
         Verifies if the intent has the authority to cross the irreversible boundary.
         """
         if proposed_action not in self.protected_actions:
-            return True # Low-risk actions bypass the gate
-            
-        # Check if the provided token matches the hardware-level environment token
-        if user_token == self.governance_token:
-            return True
-        else:
+            return True  # Low-risk actions bypass the gate
+
+        # Reject immediately if either token is missing
+        if not user_token or not self.governance_token:
             return False
+
+        # Use a timing-safe comparison to prevent timing-based token enumeration
+        user_hash = hashlib.sha256(user_token.encode()).digest()
+        gov_hash = hashlib.sha256(self.governance_token.encode()).digest()
+        return hmac.compare_digest(user_hash, gov_hash)
 
     def intercept_execution(self, plan):
         """
@@ -34,8 +39,10 @@ class AuthorityGate:
                     }
         return {"status": "200_OK", "message": "Authority Verified."}
 
+
 # Example usage in the RootAI Pipeline
-gate = AuthorityGate()
-proposed_plan = [{"action": "FILE_DELETE", "target": "/root/secure_configs"}]
-result = gate.intercept_execution(proposed_plan)
-print(result)
+if __name__ == "__main__":
+    gate = AuthorityGate()
+    proposed_plan = [{"action": "FILE_DELETE", "target": "/root/secure_configs"}]
+    result = gate.intercept_execution(proposed_plan)
+    print(result)
