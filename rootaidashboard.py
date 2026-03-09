@@ -31,6 +31,15 @@ class RootAIDashboard:
         
         print("="*60 + "\n")
 
-# Integration Example
-dashboard = RootAIDashboard()
-dashboard.render_logic(plan)
+
+if __name__ == "__main__":
+    # Integration Example
+    example_plan = {
+        "intent": "Create an auth session with JWT",
+        "semantic_roots": {"auth": ["identity", "token"], "session": ["state", "persistence"]},
+        "hard_constraints": ["no eval", "JWT auth", "prepared statements"],
+        "reliability": 0.75,
+        "hallucination_risk": "low"
+    }
+    dashboard = RootAIDashboard()
+    dashboard.render_logic(example_plan)

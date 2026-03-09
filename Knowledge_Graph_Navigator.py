@@ -28,5 +28,7 @@ class KnowledgeGraphNavigator:
                     context_map[record["root"]] = record["relations"]
         return context_map
 
-# Integration into RootAI Flow
-kg_navigator = KnowledgeGraphNavigator("bolt://localhost:7687", "neo4j", "rootai")
+
+if __name__ == "__main__":
+    # Integration into RootAI Flow
+    kg_navigator = KnowledgeGraphNavigator("bolt://localhost:7687", "neo4j", "rootai")

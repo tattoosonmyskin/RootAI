@@ -24,5 +24,6 @@ def simulate_poisoning_attack():
     else:
         print("[!] FAILURE: The system accepted the poisoned data.")
 
-# Execute Simulation
-simulate_poisoning_attack()
+
+if __name__ == "__main__":
+    simulate_poisoning_attack()

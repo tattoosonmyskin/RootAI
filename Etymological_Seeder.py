@@ -28,4 +28,6 @@ def seed_graph(uri, user, password):
     driver.close()
     print("RootAI Etymological Graph Seeded Successfully.")
 
-seed_graph("bolt://localhost:7687", "neo4j", "rootai")
+
+if __name__ == "__main__":
+    seed_graph("bolt://localhost:7687", "neo4j", "rootai")
